@@ -24,6 +24,7 @@ const run = async () => {
     const updatedContent = await rewriteWithGemini(article.content, ref1, ref2);
 
     await publishUpdatedArticle(article._id, updatedContent, links);
+    delay(60000) // adding delay of 60 sec
 
     console.log('Updated & published:', article.title);
   }

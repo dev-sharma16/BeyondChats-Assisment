@@ -3,14 +3,26 @@ import { config } from '../config/env.js';
 
 const genAI = new GoogleGenerativeAI(config.geminiApiKey);
 
-export const rewriteWithGemini = async (originalArticle, ref1, ref2) => {
+const trimContent = (html, maxChars = 6000) => {
+  if (!html) return "";
+  const text = html.replace(/<[^>]*>/g, " "); // strip HTML
+  return text.length > maxChars
+    ? text.slice(0, maxChars)
+    : text;
+};
+
+export const rewriteWithGemini = async (originalHTML, refHTML1, refHTML2) => {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+  const original = trimContent(originalHTML, 4000);
+  const ref1 = trimContent(refHTML1, 3000);
+  const ref2 = trimContent(refHTML2, 3000);
 
   const prompt = `
 You are a professional content writer.
 
 ORIGINAL ARTICLE:
-${originalArticle}
+${original}
 
 REFERENCE ARTICLE 1:
 ${ref1}
@@ -25,6 +37,17 @@ Do NOT copy text.
 Return clean HTML content only.
 `;
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  try {
+    const result = await model.generateContent(prompt);
+    return result.response.text();
+
+  } catch (err) {
+    if (err.status === 429) {
+      console.log("Gemini rate limit hit. Waiting 60 seconds...");
+      await delay(60000);
+      return rewriteWithGemini(originalHTML, refHTML1, refHTML2);
+    }
+
+    throw err;
+  }
 };
